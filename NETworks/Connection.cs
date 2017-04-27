@@ -3,22 +3,12 @@
 // 
 // See <summary> tags for more information.
 
-using System;
 using System.Net.Sockets;
 
 namespace NETworks
 {
     internal class Connection
     {
-        public ConnectionState State { get; set; }
-
-        public string Guid { get; private set; }
-
-        public string Service { get; private set; }
-
-        internal TcpClient TcpClient { get; private set; }
-        internal NetworkStream Stream { get; private set; }
-
         internal Connection(string guid, string service, TcpClient tcpClient, NetworkStream stream)
         {
             this.State = ConnectionState.Open;
@@ -27,6 +17,15 @@ namespace NETworks
             this.TcpClient = tcpClient;
             this.Stream = stream;
         }
+
+        public ConnectionState State { get; set; }
+
+        public string Guid { get; }
+
+        public string Service { get; private set; }
+
+        internal TcpClient TcpClient { get; }
+        internal NetworkStream Stream { get; }
 
         public void Close()
         {

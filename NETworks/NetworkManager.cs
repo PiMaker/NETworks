@@ -4,6 +4,7 @@
 // See <summary> tags for more information.
 
 using System;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -15,24 +16,28 @@ namespace NETworks
     internal class NetworkManager
     {
         private const int TIMEOUT = 5000;
-        private static readonly byte[] MagicMessage = {64, 128, 255};
-
-        private TcpListener tcpListener;
 
         private readonly UdpClient udpClient = new UdpClient(6205);
+        private short port = 6205;
+
+        private TcpListener tcpListener;
 
         public async Task Discover(string service)
         {
             Logger.Log("Sending discovery request");
 
+            var serviceBytes = Encoding.Unicode.GetBytes(service);
+            var sendBytes =
+                NETworks.MagicMessage.Concat(BitConverter.GetBytes(this.port)).Concat(serviceBytes).ToArray();
+
             try
             {
-                var sent = await this.udpClient.SendAsync(NetworkManager.MagicMessage,
-                    NetworkManager.MagicMessage.Length, new IPEndPoint(IPAddress.Broadcast, 6205));
+                var sent = await this.udpClient.SendAsync(sendBytes,
+                    sendBytes.Length, new IPEndPoint(IPAddress.Broadcast, 6205));
 
-                if (sent != NetworkManager.MagicMessage.Length)
+                if (sent != sendBytes.Length)
                 {
-                    Logger.Log("Unknown UDP error, no bytes were sent");
+                    Logger.Log("Unknown UDP error, no/wrong bytes were sent");
                     return;
                 }
             }
@@ -53,8 +58,29 @@ namespace NETworks
                 throw new InvalidOperationException("tcpListener already initialized, something went wrong");
             }
 
-            this.tcpListener = new TcpListener(IPAddress.Any, 6205);
-            this.tcpListener.Start();
+            var done = false;
+            for (var i = 0; i < 50; i++)
+            {
+                try
+                {
+                    this.tcpListener = new TcpListener(IPAddress.Any, this.port);
+                    this.tcpListener.Start();
+
+                    done = true;
+                    break;
+                }
+                catch (Exception e)
+                {
+                    Logger.Log(e);
+                    this.port++;
+                }
+            }
+
+            if (!done)
+            {
+                throw new InvalidOperationException(
+                    "Error while creating tcpListener. Did you try to create more than 20 instances on one machine?");
+            }
 
             Task.Run(async () =>
             {
@@ -94,7 +120,8 @@ namespace NETworks
 
         public void Shutdown()
         {
-            
+            this.tcpListener.Stop();
+            this.udpClient.Close();
         }
     }
 

@@ -3,6 +3,9 @@
 // 
 // See <summary> tags for more information.
 
+using System.Linq;
+using System.Text;
+
 namespace NETworks
 {
     public class Response
@@ -14,11 +17,22 @@ namespace NETworks
             this.Message = message;
         }
 
-        public ResponseStatus Status { get; private set; }
+        public ResponseStatus Status { get; }
 
-        public byte[] Body { get; private set; }
+        public byte[] Body { get; }
 
-        public string Message { get; private set; }
+        public string Message { get; }
+
+        internal byte[] AsBytes
+        {
+            get
+            {
+                var messageBytes = Encoding.Unicode.GetBytes(this.Message);
+                return
+                    new[] {this.Status == ResponseStatus.Ok ? (byte) 0 : (byte) 1, (byte) messageBytes.Length}.Concat(
+                        messageBytes).Concat(this.Body).ToArray();
+            }
+        }
     }
 
     public enum ResponseStatus

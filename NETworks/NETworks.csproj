@@ -49,6 +49,7 @@
     <Compile Include="NETworks.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Response.cs" />
+    <Compile Include="Service.cs" />
     <Compile Include="ServiceCache.cs" />
   </ItemGroup>
   <ItemGroup>
