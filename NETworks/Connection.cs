@@ -4,6 +4,7 @@
 // See <summary> tags for more information.
 
 using System.Net.Sockets;
+using SimpleLogger;
 
 namespace NETworks
 {
@@ -25,13 +26,16 @@ namespace NETworks
         public string Service { get; private set; }
 
         internal TcpClient TcpClient { get; }
+
         internal NetworkStream Stream { get; }
 
         public void Close()
         {
+            Logger.Log($"Connection {this.Guid} closing");
+            this.State = ConnectionState.Closed;
+            this.Stream.Close();
             this.Stream.Dispose();
             this.TcpClient.Close();
-            this.State = ConnectionState.Closed;
         }
 
         public override string ToString()

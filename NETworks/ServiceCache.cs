@@ -3,6 +3,7 @@
 // 
 // See <summary> tags for more information.
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -12,6 +13,9 @@ namespace NETworks
 {
     internal class ServiceCache
     {
+        private const int TIMEOUT = 100;
+        private const int TIMEOUT_TRIES = 50;
+
         private readonly Dictionary<string, List<Connection>> cache;
         private readonly object cacheLock = new object();
         private readonly NetworkManager networkManager;
@@ -71,9 +75,20 @@ namespace NETworks
                     Logger.Log("Cache miss, requesting discovery");
                     await this.networkManager.Discover(service);
 
-                    if (NETworks.Alive)
+                    Logger.Log("Commencing delay");
+
+                    for (var i = 0; i < ServiceCache.TIMEOUT_TRIES; i++)
                     {
-                        return await this.Get(service, false);
+                        await Task.Delay(ServiceCache.TIMEOUT);
+
+                        if (Network.Alive)
+                        {
+                            var newCon = await this.Get(service, false);
+                            if (newCon != default(Connection))
+                            {
+                                return newCon;
+                            }
+                        }
                     }
                 }
 

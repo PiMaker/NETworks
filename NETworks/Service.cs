@@ -14,21 +14,19 @@ namespace NETworks
         private readonly List<TcpClient> clients = new List<TcpClient>();
         private readonly object clientsLock = new object();
 
-        public Service(string tag, RequestCallback requestCallback,
-            ChannelRequestCallback channelRequestCallback, ChannelOpenedCallback channelOpenedCallback)
+        public Service(string tag, RequestCallback requestCallback)
         {
             this.Tag = tag;
             this.RequestCallback = requestCallback;
-            this.ChannelRequestCallback = channelRequestCallback;
-            this.ChannelOpenedCallback = channelOpenedCallback;
+
+            this.Guid = Guid.NewGuid();
+            Logger.Log($"Service initialized ({tag} -> {this.Guid})");
         }
 
         public string Tag { get; }
         public RequestCallback RequestCallback { get; }
-        public ChannelRequestCallback ChannelRequestCallback { get; }
-        public ChannelOpenedCallback ChannelOpenedCallback { get; }
 
-        public Guid Guid { get; } = Guid.NewGuid();
+        public Guid Guid { get; }
 
         public void AddClient(IPEndPoint remoteEndPoint)
         {
@@ -63,7 +61,7 @@ namespace NETworks
                 {
                     stream.Write(preamble, 0, preamble.Length);
 
-                    while (NETworks.Alive && client.Connected)
+                    while (Network.Alive && client.Connected)
                     {
                         var requestBytes = new List<byte>();
                         var buffer = new byte[1024];
@@ -72,6 +70,13 @@ namespace NETworks
                         do
                         {
                             read = stream.Read(buffer, 0, buffer.Length);
+
+                            if (read == 0)
+                            {
+                                // Client closed
+                                return;
+                            }
+
                             requestBytes.AddRange(buffer.Take(read));
                         } while (read == buffer.Length);
 

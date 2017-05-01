@@ -15,12 +15,16 @@ namespace NETworks
 {
     internal class NetworkManager
     {
-        private const int TIMEOUT = 5000;
-
-        private readonly UdpClient udpClient = new UdpClient(6205);
+        private readonly UdpClient udpClient;
         private short port = 6205;
 
         private TcpListener tcpListener;
+
+        public NetworkManager()
+        {
+            this.udpClient = new UdpClient();
+            this.udpClient.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+        }
 
         public async Task Discover(string service)
         {
@@ -28,7 +32,7 @@ namespace NETworks
 
             var serviceBytes = Encoding.Unicode.GetBytes(service);
             var sendBytes =
-                NETworks.MagicMessage.Concat(BitConverter.GetBytes(this.port)).Concat(serviceBytes).ToArray();
+                Network.MagicMessage.Concat(BitConverter.GetBytes(this.port)).Concat(serviceBytes).ToArray();
 
             try
             {
@@ -44,11 +48,7 @@ namespace NETworks
             catch (Exception e)
             {
                 Logger.Log(e);
-                return;
             }
-
-            Logger.Log("Commencing delay");
-            await Task.Delay(NetworkManager.TIMEOUT);
         }
 
         public void RegisterClientListener(ServerConnectionCallback callback)
@@ -79,12 +79,12 @@ namespace NETworks
             if (!done)
             {
                 throw new InvalidOperationException(
-                    "Error while creating tcpListener. Did you try to create more than 20 instances on one machine?");
+                    "Error while creating tcpListener. Did you try to create more than 50 instances on one machine?");
             }
 
             Task.Run(async () =>
             {
-                while (NETworks.Alive)
+                while (Network.Alive)
                 {
                     try
                     {
@@ -94,25 +94,26 @@ namespace NETworks
                             Logger.Log("Incoming TCP connection, beginning preamble decoding");
 
                             var buffer = new byte[256];
-                            using (var stream = client.GetStream())
+                            var stream = client.GetStream();
+                            var read = await stream.ReadAsync(buffer, 0, buffer.Length);
+
+                            if (read > 0 && read > buffer[0] + 1)
                             {
-                                var read = await stream.ReadAsync(buffer, 0, buffer.Length);
+                                var guidLength = buffer[0];
+                                var guid = Encoding.ASCII.GetString(buffer, 1, guidLength);
+                                var service = Encoding.Unicode.GetString(buffer, 1 + guidLength,
+                                    read - 1 - guidLength);
 
-                                if (read > 0 && read > buffer[0] + 1)
-                                {
-                                    var guidLength = buffer[0];
-                                    var guid = Encoding.ASCII.GetString(buffer, 1, guidLength);
-                                    var service = Encoding.Unicode.GetString(buffer, 1 + guidLength,
-                                        read - 1 - guidLength);
-
-                                    callback?.Invoke(service, new Connection(guid, service, client, stream));
-                                }
+                                callback?.Invoke(service, new Connection(guid, service, client, stream));
                             }
                         }
                     }
                     catch (Exception e)
                     {
-                        Logger.Log(e);
+                        if (Network.Alive)
+                        {
+                            Logger.Log(e);
+                        }
                     }
                 }
             });

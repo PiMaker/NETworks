@@ -37,8 +37,19 @@ namespace NETworks
 
     public enum ResponseStatus
     {
+        /// <summary>
+        /// Everything is good.
+        /// </summary>
         Ok,
+
+        /// <summary>
+        /// Something bad happened at the service.
+        /// </summary>
         ServerError,
+
+        /// <summary>
+        /// The service could not be reached. NOTE: Not intended for use as a response code in a service callback.
+        /// </summary>
         Error
     }
 }
